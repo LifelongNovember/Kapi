@@ -50,8 +50,9 @@ public class PageMeteo extends AppCompatActivity {
             JSONArray obj = new JSONArray(str);
 
             // get the first result
-            res = obj.getJSONObject(0);
+            res = obj.getJSONObject(obj.length()-1);
             kp = res.getInt("kp_index");
+            System.out.println(res.getString("time_tag"));
         }
         catch(Exception e) {
             Log.e("ERROR", e.getMessage(), e);
