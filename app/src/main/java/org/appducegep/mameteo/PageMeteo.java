@@ -2,51 +2,24 @@ package org.appducegep.mameteo;
 
 import android.os.Bundle;
 import android.os.StrictMode;
-import android.support.annotation.NonNull;
-import android.support.design.widget.BottomNavigationView;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
-import android.view.MenuItem;
 import android.widget.TextView;
+import android.widget.ImageView;
+import android.text.method.LinkMovementMethod;
+import android.text.Html;
 
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.xml.sax.SAXException;
+import org.json.JSONObject;
 
-import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
 import java.net.URL;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
+import java.util.Scanner;
+
 
 public class PageMeteo extends AppCompatActivity {
 
-    private TextView libelleTitre;
-
-    private BottomNavigationView.OnNavigationItemSelectedListener mOnNavigationItemSelectedListener
-            = new BottomNavigationView.OnNavigationItemSelectedListener() {
-
-        @Override
-        public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-            switch (item.getItemId()) {
-                case R.id.navigation_meteo:
-                    libelleTitre.setText(R.string.titre_accueil);
-                    return true;
-                case R.id.navigation_meteo_detail:
-                    libelleTitre.setText(R.string.titre_meteo_detail);
-                    return true;
-                case R.id.navigation_notifications:
-                    libelleTitre.setText(R.string.title_notifications);
-                    return true;
-            }
-            return false;
-        }
-    };
+    private JSONObject res;
+    private int kp;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,77 +32,92 @@ public class PageMeteo extends AppCompatActivity {
             StrictMode.setThreadPolicy(policy);
         }
 
-        libelleTitre = (TextView) findViewById(R.id.message);
-        BottomNavigationView navigation = (BottomNavigationView) findViewById(R.id.navigation);
-        navigation.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener);
-
-        String CLE = "";
-        String xml = "";
 
         try {
-            URL url = new URL("https://api.apixu.com/v1/current.xml?key="+CLE+"&q=Matane");
-            HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
-            try {
-                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
-                StringBuilder stringBuilder = new StringBuilder();
-                String line;
-                while ((line = bufferedReader.readLine()) != null) {
-                    stringBuilder.append(line).append("\n");
-                }
-                bufferedReader.close();
-                xml = stringBuilder.toString();
-            }
-            finally{
-                urlConnection.disconnect();
-            }
+            // build a URL
+            String s = "https://services.swpc.noaa.gov/json/planetary_k_index_1m.json";
+            URL url = new URL(s);
+
+            // read from the URL
+            Scanner scan = new Scanner(url.openStream());
+            String str = new String();
+            while (scan.hasNext())
+                str += scan.nextLine();
+            scan.close();
+
+            // build a JSON object
+            JSONObject obj = new JSONObject(str);
+            if (! obj.getString("status").equals("OK"))
+                return;
+
+            // get the first result
+            res = obj.getJSONArray("results").getJSONObject(0);
+            kp = res.getInt("kp_index");
         }
         catch(Exception e) {
             Log.e("ERROR", e.getMessage(), e);
         }
-        System.out.println(xml);
 
-        try {
-            DocumentBuilderFactory builderFactory = DocumentBuilderFactory.newInstance();
-            DocumentBuilder docBuilder = null;
-            docBuilder = builderFactory.newDocumentBuilder();
-            Document doc = null;
-            doc = docBuilder.parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
-            Element elementHumidite = (Element)doc.getElementsByTagName("humidity").item(0);
-            String humidite = elementHumidite.getTextContent();
-            Element elementVentForce = (Element)doc.getElementsByTagName("wind_kph").item(0);
-            String ventForce = elementVentForce.getTextContent();
-            Element elementVentDirection = (Element)doc.getElementsByTagName("wind_dir").item(0);
-            String ventDirection = elementVentDirection.getTextContent();
-            Element elementCondition = (Element)doc.getElementsByTagName("condition").item(0);
-            Element elementSoleilOuNuage = (Element)elementCondition.getElementsByTagName("text").item(0);
-            String soleilOuNuage = elementSoleilOuNuage.getTextContent();
-            if(soleilOuNuage.compareTo("Sunny") == 0) soleilOuNuage = "Ensoleillé";
-            else soleilOuNuage = "Nuageux";
+        ImageView iv = (ImageView)this.findViewById(R.id.imageView);
+        TextView tv1 = (TextView)this.findViewById(R.id.textView);
+        TextView tv2 = (TextView)this.findViewById(R.id.textView2);
+        TextView tv3 = (TextView)this.findViewById(R.id.textView3);
 
-            System.out.println("Meteo = " + soleilOuNuage);
-            System.out.println("Vent : " + ventDirection + " " + ventForce + "\n");
-            System.out.println("Humidite = " + humidite);
+        String s = "Déterminez sous quelles latitudes vous vous trouvez à l'adresse suivante : <font color=\"black\"><a href=\"https://www.spaceweatherlive.com/en/help/the-low-middle-and-high-latitude\">https://www.spaceweatherlive.com/en/help/the-low-middle-and-high-latitude</a></font>";
 
-            TextView affichageMeteo = (TextView)this.findViewById(R.id.meteo);
-            affichageMeteo.setText(soleilOuNuage + "\n");
-            affichageMeteo.append("\n\n\n\n\n");
-            affichageMeteo.append("Vent : " + ventDirection + " " + ventForce + "\n");
-            affichageMeteo.append("Humidite : " + humidite + "\n");
+        ((TextView) findViewById(R.id.textView3)).setMovementMethod(LinkMovementMethod.getInstance());
+        ((TextView) findViewById(R.id.textView3)).setText(Html.fromHtml(s));
 
-
-            MeteoDAO meteoDAO = new MeteoDAO(getApplicationContext());
-            meteoDAO.ajouterMeteo(soleilOuNuage);
-
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (SAXException e) {
-            e.printStackTrace();
+        switch(kp) {
+            case 1:
+                iv.setImageResource(R.drawable.kp1);
+                tv1.setText("Kp1 : Activité géomagnétique insuffisante");
+                tv2.setText("Impossible d'observer des aurores sur les latitudes moyennes");
+                break;
+            case 2:
+                iv.setImageResource(R.drawable.kp2);
+                tv1.setText("Kp2 : Activité géomagnétique insuffisante");
+                tv2.setText("Impossible d'observer des aurores sur les latitudes moyennes");
+                break;
+            case 3:
+                iv.setImageResource(R.drawable.kp3);
+                tv1.setText("Kp3 : Activité géomagnétique insuffisante");
+                tv2.setText("Impossible d'observer des aurores sur les latitudes moyennes");
+                break;
+            case 4:
+                iv.setImageResource(R.drawable.kp4);
+                tv1.setText("Kp4 : Activité géomagnétique constatée");
+                tv2.setText("Aurores éventuellement observables sur les latitudes moyennes selon les conditions météorologiques");
+                break;
+            case 5:
+                iv.setImageResource(R.drawable.kp5);
+                tv1.setText("Kp5 / G1 : Tempête géomagnétique mineure");
+                tv2.setText("Aurores éventuellement observables sur les latitudes moyennes selon les conditions météorologiques");
+                break;
+            case 6:
+                iv.setImageResource(R.drawable.kp6);
+                tv1.setText("Kp6 / G2 : Tempête géomagnétique modérée");
+                tv2.setText("Aurores éventuellement observables sur les latitudes moyennes selon les conditions météorologiques");
+                break;
+            case 7:
+                iv.setImageResource(R.drawable.kp7);
+                tv1.setText("Kp7 / G3 : Tempête géomagnétique forte");
+                tv2.setText("Aurores éventuellement observables sur les latitudes moyennes selon les conditions météorologiques");
+                break;
+            case 8:
+                iv.setImageResource(R.drawable.kp8);
+                tv1.setText("Kp8 / G4 : Tempête géomagnétique sévère");
+                tv2.setText("Aurores éventuellement observables sur les latitudes moyennes et basses selon les conditions météorologiques");
+                break;
+            case 9:
+                iv.setImageResource(R.drawable.kp9);
+                tv1.setText("Kp9 / G5 : Tempête géomagnétique extrême");
+                tv2.setText("Aurores éventuellement observables sur les latitudes moyennes et basses selon les conditions météorologiques");
+                break;
+            default:
+                tv1.setText("Kp0 : Activité géomagnétique insuffisante");
+                tv2.setText("Impossible d'observer des aurores sur les latitudes moyennes");
+                break;
         }
-         catch (ParserConfigurationException e) {
-            e.printStackTrace();
-        }
-
     }
-
 }
