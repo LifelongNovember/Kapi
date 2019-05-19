@@ -9,6 +9,7 @@ import android.widget.ImageView;
 import android.text.method.LinkMovementMethod;
 import android.text.Html;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.net.URL;
@@ -46,12 +47,10 @@ public class PageMeteo extends AppCompatActivity {
             scan.close();
 
             // build a JSON object
-            JSONObject obj = new JSONObject(str);
-            if (! obj.getString("status").equals("OK"))
-                return;
+            JSONArray obj = new JSONArray(str);
 
             // get the first result
-            res = obj.getJSONArray("results").getJSONObject(0);
+            res = obj.getJSONObject(0);
             kp = res.getInt("kp_index");
         }
         catch(Exception e) {
@@ -67,6 +66,8 @@ public class PageMeteo extends AppCompatActivity {
 
         ((TextView) findViewById(R.id.textView3)).setMovementMethod(LinkMovementMethod.getInstance());
         ((TextView) findViewById(R.id.textView3)).setText(Html.fromHtml(s));
+
+        System.out.println("" + kp);
 
         switch(kp) {
             case 1:
